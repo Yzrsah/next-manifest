@@ -2,9 +2,31 @@ const {resolve} = require('path');
 const pwaManifest = require('@pwa/manifest');
 const pwaManifestIcons = require('@pwa/manifest-icons');
 
+const makeManifest = async manifest => {
+  const m = await pwaManifest({
+    "background_color": "#FFFFFF",
+    "theme_color": "#FFFFFF",
+    "start_url": "/?utm_source=web_app_manifest",
+    ...manifest
+  });
+
+  if (manifest.icons && manifest.icons.src) {
+    m.icons = await pwaManifestIcons({
+      src: manifest.icons.src,
+      cache: manifest.icons.cache || false,
+      output: resolve(process.cwd(), `./static/manifest/icons`),
+      publicPath: '/static/manifest/icons/',
+      sizes: manifest.icons.sizes || [192, 512]
+
+    });
+  }
+
+  await pwaManifest.write('./static/manifest/', m);
+}
+
 module.exports = (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
-    async webpack(config, options) {
+    webpack(config, options) {
       const {
         isServer,
         dev,
@@ -24,25 +46,7 @@ module.exports = (nextConfig = {}) => {
       const {webpack, manifest} = nextConfig;
 
       if (!isServer && !dev) {
-        const m = await pwaManifest({
-          "background_color": "#FFFFFF",
-          "theme_color": "#FFFFFF",
-          "start_url": "/?utm_source=web_app_manifest",
-          ...manifest
-        });
-
-        if (manifest.icons && manifest.icons.src) {
-          m.icons = await pwaManifestIcons({
-            src: manifest.icons.src,
-            cache: manifest.icons.cache || false,
-            output: resolve(process.cwd(), `./static/manifest/icons`),
-            publicPath: '/static/manifest/icons/',
-            sizes: manifest.icons.sizes || [192, 512]
-
-          });
-        }
-
-        await pwaManifest.write('./static/manifest/', m);
+        makeManifest(manifest);
       }
 
       if (typeof webpack === 'function') {
